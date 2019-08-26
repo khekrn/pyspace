@@ -1,5 +1,5 @@
 import pysearch
-
+import collections
 import string
 
 
@@ -14,36 +14,34 @@ class InvertedSearch(pysearch.Indexer):
             doc_id = doc.get_document_id()
             doc_content = doc.get_text()
             doc_content = doc_content.translate(self.translator).lower()
-            temp_dict = dict()
             for word in doc_content.split(" "):
-                if word not in temp_dict:
-                    temp_dict[word] = 1
+                if word not in self.index_dict:
+                    self.index_dict[word] = {doc_id: 1}
                 else:
-                    temp_dict[word] = temp_dict[word] + 1
-            for key, value in temp_dict.items():
-                if key not in self.index_dict:
-                    self.index_dict[key] = [(doc_id, value)]
-                else:
-                    arr = self.index_dict[key]
-                    arr.append((doc_id, value))
-                    self.index_dict[key] = arr
+                    doc_count_dict: dict = self.index_dict[word]
+                    if doc_id in doc_count_dict:
+                        doc_count_dict[doc_id] = doc_count_dict[doc_id] + 1
+                    else:
+                        doc_count_dict[doc_id] = 1
+                    self.index_dict[word] = doc_count_dict
 
     def search(self, word):
         if word is None or word not in self.index_dict:
             return None
         word = word.lower()
-        res: list = self.index_dict[word]
-        res.sort(key=lambda x: x[1], reverse=True)
-        return res
+        res: dict = self.index_dict[word]
+        sort_order = sorted(res.items(), key=lambda kv: kv[1], reverse=True)
+        return collections.OrderedDict(sort_order)
 
 
 if __name__ == '__main__':
     inv_search = InvertedSearch()
     docs = [
         pysearch.Document(1, "The big sharks of Belgium drink beer."),
-        pysearch.Document(2, "Belgium has great beer. They drink beer all the time.")
+        pysearch.Document(2, "Belgium has great beer. They drink beer all the time."),
+        pysearch.Document(3, "belgium chocolates are so cool and i want to have more belgium belgium belgium chocolate")
     ]
 
     inv_search.index(docs)
 
-    print(inv_search.search("beer"))
+    print(inv_search.search("belgium"))
